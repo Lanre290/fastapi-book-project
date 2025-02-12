@@ -30,4 +30,4 @@ jobs:
       run: |
         curl https://render.com/deploy > render-cli
         chmod +x render-cli
-        ./render-cli deploy --service fastapi-project
+        ./render-cli deploy --service fastapi-book-project-1

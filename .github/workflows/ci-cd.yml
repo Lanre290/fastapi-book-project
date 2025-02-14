@@ -40,6 +40,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Deploy Application
+      - name: Deploy to AWS EC2
+        env:
+          SSH_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
         run: |
-          echo "Deploying application... yet to implement"
+          echo "$SSH_KEY" > deploy_key.pem
+          chmod 600 deploy_key.pem
+          scp -i deploy_key.pem -r ./ ubuntu@16.171.1.119:/fastapi-book-project
+          ssh -i deploy_key.pem ubuntu@18.222.123.456 "sudo systemctl restart my-fastapi-app"
+
+

@@ -40,22 +40,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Ensure SSH Directory
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
       - name: Add Host to Known Hosts
         run: |
           ssh-keyscan -H 16.16.25.254 >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Deploy to AWS EC2
         env:
           SSH_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
         run: |
+          # Add private key for SSH
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
 
           # Sync files to the target directory
+          echo "Deploying files to EC2..."
           rsync -avz --delete -e "ssh -i deploy_key.pem" ./ ubuntu@16.16.25.254:~/fastapi-book-project
 
           # Restart FastAPI application
+          echo "Restarting FastAPI application..."
           ssh -i deploy_key.pem ubuntu@16.16.25.254 "
-            pkill -f 'uvicorn' || true  # Stop existing FastAPI instance
+            pkill -f 'uvicorn' || true  # Stop any existing FastAPI instance
             nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &
           "
+
+          echo "Deployment complete!"

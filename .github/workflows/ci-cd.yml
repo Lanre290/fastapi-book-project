@@ -64,9 +64,10 @@ jobs:
 
           # Restart FastAPI application
           echo "Restarting FastAPI application..."
-          ssh -i deploy_key.pem ubuntu@16.16.25.254 "
-            pkill -f 'uvicorn' || true  # Stop any existing FastAPI instance
+          ssh -i deploy_key.pem ubuntu@16.16.25.254 <<EOF
+            pkill -f 'uvicorn' || true  # Stop existing FastAPI instance
             nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &
-          "
+          EOF
 
           echo "Deployment complete!"
+

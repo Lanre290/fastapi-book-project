@@ -1,10 +1,10 @@
 name: CI/CD Pipeline
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-  push:
+  pull_request:
     branches:
       - main
 
@@ -24,7 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Tests
@@ -42,9 +42,7 @@ jobs:
 
       - name: Add Host to Known Hosts
         run: |
-          mkdir -p ~/.ssh  # Ensure .ssh directory exists
           ssh-keyscan -H 16.16.25.254 >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy to AWS EC2
         env:
@@ -53,22 +51,11 @@ jobs:
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
 
-          # Test SSH connection
-          echo "Testing SSH connection..."
-          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ubuntu@16.16.25.254 "echo 'Connected to server'"
-
-          # Ensure target directory exists
-          ssh -i deploy_key.pem ubuntu@16.16.25.254 "mkdir -p ~/fastapi-book-project"
-
-          # Sync files to the server (use rsync for efficiency)
-          echo "Deploying application files..."
+          # Sync files to the target directory
           rsync -avz --delete -e "ssh -i deploy_key.pem" ./ ubuntu@16.16.25.254:~/fastapi-book-project
 
-          # Stop and restart FastAPI
-          echo "Restarting FastAPI application..."
+          # Restart FastAPI application
           ssh -i deploy_key.pem ubuntu@16.16.25.254 "
-            pkill -f 'uvicorn' || true  # Stop any running instance of uvicorn
-            nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &  # Start FastAPI in the background
+            pkill -f 'uvicorn' || true  # Stop existing FastAPI instance
+            nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &
           "
-
-          echo "Deployment complete!"

@@ -40,13 +40,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Add Host to Known Hosts
+        run: |
+          ssh-keyscan -H 16.16.25.254 >> ~/.ssh/known_hosts
+
       - name: Deploy to AWS EC2
         env:
           SSH_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
         run: |
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
+
+          # Copy files to the server
           scp -i deploy_key.pem -r ./ ubuntu@16.16.25.254:/fastapi-book-project
+
+          # Start FastAPI application
           ssh -i deploy_key.pem ubuntu@16.16.25.254 "
             pkill -f 'uvicorn' || true &&  # Stop any running instance of uvicorn
             nohup uvicorn main:app --host 0.0.0.0 --port 8000 &  # Start FastAPI in the background

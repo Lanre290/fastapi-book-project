@@ -54,20 +54,32 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
         run: |
-          # Add private key for SSH
+          # Added private key for SSH
           echo "$SSH_KEY" > deploy_key.pem
           chmod 600 deploy_key.pem
 
-          # Sync files to the target directory
+          # Sync files to the target directory, excluding local venv
           echo "Deploying files to EC2..."
-          rsync -avz --delete -e "ssh -i deploy_key.pem" ./ ubuntu@16.16.25.254:~/fastapi-book-project
+          rsync -avz --delete --exclude 'venv/' -e "ssh -i deploy_key.pem" ./ ubuntu@16.16.25.254:~/fastapi-book-project
 
-          # Restart FastAPI application
-          echo "Restarting FastAPI application..."
+          # Automate virtual environment setup and restart FastAPI
+          echo "Setting up virtual environment and starting FastAPI..."
           ssh -i deploy_key.pem ubuntu@16.16.25.254 <<EOF
-            pkill -f 'uvicorn' || true  # Stop existing FastAPI instance
-            nohup uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &
+            cd ~/fastapi-book-project
+
+            # Create virtual environment if it doesn't exist
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+
+            # Activate virtual environment and install dependencies
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Restart FastAPI application using the virtual environment
+            pkill -f 'uvicorn' || true
+            nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir ~/fastapi-book-project &
           EOF
 
           echo "Deployment complete!"
-
